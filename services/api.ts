@@ -143,4 +143,152 @@ export const isAuthenticated = async (): Promise<boolean> => {
   return !!token;
 };
 
+// Category types - 3 level hierarchy
+// Level 2: Sub-subcategory (has products)
+export interface SubSubcategory {
+  id: string;
+  name: string;
+  description: string | null;
+  parent_id: string;
+  level: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Level 1: Subcategory (e.g., "Fruits & Vegetables")
+export interface Subcategory {
+  id: string;
+  name: string;
+  description: string | null;
+  parent_id: string;
+  level: number;
+  created_at: string;
+  updated_at: string;
+  subcategories?: SubSubcategory[]; // Level 2 children
+}
+
+// Level 0: Top-level Category (e.g., "Grocery & Kitchen")
+export interface Category {
+  id: string;
+  name: string;
+  description: string | null;
+  parent_id: string | null;
+  level: number;
+  created_at: string;
+  updated_at: string;
+  subcategories: Subcategory[]; // Level 1 children
+}
+
+// Get all categories with subcategories (Public)
+export const getCategories = async (): Promise<ApiResponse<Category[]>> => {
+  return apiRequest<Category[]>('/categories');
+};
+
+// Product types
+export interface Product {
+  id: string;
+  sub_category_id: string;
+  name: string;
+  description: string | null;
+  price: string;
+  stock_quantity: number;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+  subcategory?: Subcategory & {
+    parent?: Category;
+  };
+}
+
+export interface PaginatedResponse<T> {
+  current_page: number;
+  data: T[];
+  first_page_url: string;
+  from: number;
+  last_page: number;
+  last_page_url: string;
+  next_page_url: string | null;
+  path: string;
+  per_page: number;
+  prev_page_url: string | null;
+  to: number;
+  total: number;
+}
+
+// Get products with optional filters (Public)
+export const getProducts = async (params?: {
+  category_id?: string;
+  sub_category_id?: string;
+  sub_sub_category_id?: string;
+  search?: string;
+  per_page?: number;
+  page?: number;
+}): Promise<ApiResponse<PaginatedResponse<Product>>> => {
+  const queryParams = new URLSearchParams();
+
+  if (params?.category_id) queryParams.append('category_id', params.category_id);
+  if (params?.sub_category_id) queryParams.append('sub_category_id', params.sub_category_id);
+  if (params?.sub_sub_category_id) queryParams.append('sub_sub_category_id', params.sub_sub_category_id);
+  if (params?.search) queryParams.append('search', params.search);
+  if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+  if (params?.page) queryParams.append('page', params.page.toString());
+
+  const queryString = queryParams.toString();
+  const endpoint = `/products${queryString ? `?${queryString}` : ''}`;
+
+  return apiRequest<PaginatedResponse<Product>>(endpoint);
+};
+
+// Cart types
+export interface CartItem {
+  id: string;
+  user_id: string;
+  product_id: string;
+  quantity: number;
+  created_at: string;
+  updated_at: string;
+  product: Product;
+}
+
+export interface CartResponse {
+  items: CartItem[];
+  total: number;
+}
+
+// Add product to cart
+export const addToCart = async (
+  productId: string,
+  quantity: number = 1
+): Promise<ApiResponse<CartItem>> => {
+  return apiRequest<CartItem>('/cart', {
+    method: 'POST',
+    body: JSON.stringify({ product_id: productId, quantity }),
+  });
+};
+
+// Get cart items
+export const getCart = async (): Promise<ApiResponse<CartResponse>> => {
+  return apiRequest<CartResponse>('/cart');
+};
+
+// Update cart item quantity
+export const updateCartItem = async (
+  cartItemId: string,
+  quantity: number
+): Promise<ApiResponse<CartItem>> => {
+  return apiRequest<CartItem>(`/cart/${cartItemId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ quantity }),
+  });
+};
+
+// Remove item from cart
+export const removeFromCart = async (
+  cartItemId: string
+): Promise<ApiResponse<null>> => {
+  return apiRequest<null>(`/cart/${cartItemId}`, {
+    method: 'DELETE',
+  });
+};
+
 export { API_BASE_URL };

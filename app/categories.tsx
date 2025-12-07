@@ -1,71 +1,76 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { Heart, Search } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { Heart, Search, ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { getCategories, Category } from '@/services/api';
+
+// Placeholder images for categories (since API doesn't have images)
+const categoryImages: Record<string, string> = {
+  'Grocery & Kitchen': 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=400&fit=crop',
+  'Fruits & Vegetables': 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=400&h=400&fit=crop',
+  'Dairy, Bread & Eggs': 'https://images.unsplash.com/photo-1628088062854-d1870b4553da?w=400&h=400&fit=crop',
+  'Masala & Dry Fruits': 'https://images.unsplash.com/photo-1596040033229-a0b3b9b82e6c?w=400&h=400&fit=crop',
+  'Snacks & Drinks': 'https://images.unsplash.com/photo-1599490659213-e2b9527bd087?w=400&h=400&fit=crop',
+  'Electronics': 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&h=400&fit=crop',
+  'Fashion': 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&h=400&fit=crop',
+  'default': 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=400&fit=crop',
+};
+
+const getCategoryImage = (name: string): string => {
+  return categoryImages[name] || categoryImages['default'];
+};
 
 export default function CategoriesScreen() {
   const router = useRouter();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
-  const groceryCategories = [
-    {
-      id: '1',
-      name: 'Fruits &\nVegetables',
-      image: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=400&h=400&fit=crop'
-    },
-    {
-      id: '2',
-      name: 'Dairy, Bread\n& Eggs',
-      image: 'https://images.unsplash.com/photo-1628088062854-d1870b4553da?w=400&h=400&fit=crop'
-    },
-    {
-      id: '3',
-      name: 'Atta, Rice,\nOil & Dals',
-      image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&h=400&fit=crop'
-    },
-    {
-      id: '4',
-      name: 'Meat, Fish\n& Eggs',
-      image: 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=400&h=400&fit=crop'
-    },
-    {
-      id: '5',
-      name: 'Masala &\nDry Fruits',
-      image: 'https://images.unsplash.com/photo-1596040033229-a0b3b9b82e6c?w=400&h=400&fit=crop'
-    },
-    {
-      id: '6',
-      name: 'Breakfast &\nSauces',
-      image: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400&h=400&fit=crop'
-    },
-    {
-      id: '7',
-      name: 'Packaged\nFood',
-      image: 'https://images.unsplash.com/photo-1599490659213-e2b9527bd087?w=400&h=400&fit=crop'
-    }
-  ];
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
-  const snacksCategories = [
-    {
-      id: '8',
-      name: 'Zepto\nCafe',
-      image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=400&fit=crop'
-    },
-    {
-      id: '9',
-      name: 'Tea, Coffee\n& More',
-      image: 'https://images.unsplash.com/photo-1611564164862-33c0e5c7e93c?w=400&h=400&fit=crop'
-    },
-    {
-      id: '10',
-      name: 'Ice Creams\n& More',
-      image: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400&h=400&fit=crop'
-    },
-    {
-      id: '11',
-      name: 'Frozen\nFood',
-      image: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&h=400&fit=crop'
+  const fetchCategories = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getCategories();
+      setCategories(response.data);
+    } catch (err: any) {
+      console.error('Error fetching categories:', err);
+      setError(err.message || 'Failed to load categories');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const toggleCategory = (categoryId: string) => {
+    setExpandedCategory(expandedCategory === categoryId ? null : categoryId);
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-purple-50 items-center justify-center">
+        <ActivityIndicator size="large" color="#A855F7" />
+        <Text className="text-gray-600 mt-4">Loading categories...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-purple-50 items-center justify-center px-4">
+        <Text className="text-red-500 text-lg mb-4">{error}</Text>
+        <TouchableOpacity
+          onPress={fetchCategories}
+          className="bg-purple-500 px-6 py-3 rounded-full"
+        >
+          <Text className="text-white font-semibold">Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-purple-50">
@@ -102,74 +107,85 @@ export default function CategoriesScreen() {
           </View>
         </View>
 
-        {/* Grocery & Kitchen Section */}
-        <View className="px-4 pt-4 pb-2">
-          <Text className="text-xl font-bold text-gray-900 mb-4">Grocery & Kitchen</Text>
-          
-          {/* First Row - 3 items */}
-          <View className="flex-row flex-wrap gap-3 mb-3">
-            {groceryCategories.slice(0, 3).map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                className="bg-white rounded-2xl p-4 items-center shrink-0 basis-[31%] min-w-0"
-                onPress={() => router.push('/subcategory')}
-              >
-                <Image
-                  source={{ uri: category.image }}
-                  className="w-20 h-20 rounded-xl mb-3"
-                  resizeMode="cover"
-                />
-                <Text className="text-gray-900 text-xs font-medium text-center leading-4">
-                  {category.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+        {/* Categories List */}
+        {categories.length === 0 ? (
+          <View className="px-4 py-8 items-center">
+            <Text className="text-gray-500 text-lg">No categories available</Text>
           </View>
-
-          {/* Second Row - 4 items */}
-          <View className="flex-row flex-wrap gap-3">
-            {groceryCategories.slice(3, 7).map((category) => (
+        ) : (
+          categories.map((category) => (
+            <View key={category.id} className="px-4 pt-4 pb-2">
+              {/* Category Header */}
               <TouchableOpacity
-                key={category.id}
-                className="bg-white rounded-2xl p-4 items-center shrink-0 basis-[23%] min-w-0"
-                onPress={() => router.push('/subcategory')}
+                onPress={() => toggleCategory(category.id)}
+                className="flex-row items-center justify-between mb-4"
               >
-                <Image
-                  source={{ uri: category.image }}
-                  className="w-16 h-16 rounded-xl mb-2"
-                  resizeMode="cover"
-                />
-                <Text className="text-gray-900 text-xs font-medium text-center leading-4">
-                  {category.name}
-                </Text>
+                <Text className="text-xl font-bold text-gray-900">{category.name}</Text>
+                <View className="flex-row items-center">
+                  <Text className="text-purple-500 text-sm mr-1">
+                    {category.subcategories?.length || 0} subcategories
+                  </Text>
+                  <ChevronRight
+                    size={20}
+                    color="#A855F7"
+                    style={{
+                      transform: [{ rotate: expandedCategory === category.id ? '90deg' : '0deg' }],
+                    }}
+                  />
+                </View>
               </TouchableOpacity>
-            ))}
-          </View>
-        </View>
 
-        {/* Snacks & Drinks Section */}
-        <View className="px-4 pt-6 pb-4">
-          <Text className="text-xl font-bold text-gray-900 mb-4">Snacks & Drinks</Text>
+              {/* Subcategories Grid */}
+              {category.subcategories && category.subcategories.length > 0 && (
+                <View className="flex-row flex-wrap gap-3">
+                  {category.subcategories.map((subcategory) => (
+                    <TouchableOpacity
+                      key={subcategory.id}
+                      className="bg-white rounded-2xl p-4 items-center"
+                      style={{ width: '30%', minWidth: 100 }}
+                      onPress={() => router.push({
+                        pathname: '/subcategory',
+                        params: { id: subcategory.id, name: subcategory.name }
+                      })}
+                    >
+                      <Image
+                        source={{ uri: getCategoryImage(subcategory.name) }}
+                        className="w-16 h-16 rounded-xl mb-2"
+                        resizeMode="cover"
+                      />
+                      <Text
+                        className="text-gray-900 text-xs font-medium text-center leading-4"
+                        numberOfLines={2}
+                      >
+                        {subcategory.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
 
-          <View className="flex-row flex-wrap gap-3">
-            {snacksCategories.map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                className="bg-white rounded-2xl p-4 items-center shrink-0 basis-[23%] min-w-0"
-                onPress={() => router.push('/subcategory')}
-              >
-                <Image
-                  source={{ uri: category.image }}
-                  className="w-16 h-16 rounded-xl mb-2"
-                  resizeMode="cover"
-                />
-                <Text className="text-gray-900 text-xs font-medium text-center leading-4">
-                  {category.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+              {/* Show message if no subcategories */}
+              {(!category.subcategories || category.subcategories.length === 0) && (
+                <TouchableOpacity
+                  className="bg-white rounded-2xl p-4 items-center"
+                  onPress={() => router.push({
+                    pathname: '/subcategory',
+                    params: { id: category.id, name: category.name }
+                  })}
+                >
+                  <Image
+                    source={{ uri: getCategoryImage(category.name) }}
+                    className="w-20 h-20 rounded-xl mb-3"
+                    resizeMode="cover"
+                  />
+                  <Text className="text-gray-900 text-sm font-medium text-center">
+                    Browse {category.name}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ))
+        )}
 
         {/* Unlock Free Delivery Banner */}
         <View className="px-4 py-6">
