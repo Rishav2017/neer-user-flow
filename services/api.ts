@@ -291,4 +291,152 @@ export const removeFromCart = async (
   });
 };
 
+// Address types
+export interface Address {
+  id: string;
+  user_id: string;
+  label: 'home' | 'work' | 'other';
+  address_line: string;
+  area_name: string;
+  landmark: string | null;
+  receiver_name: string;
+  receiver_phone: string;
+  latitude: number;
+  longitude: number;
+  pincode: string;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Get user addresses
+export const getAddresses = async (): Promise<ApiResponse<Address[]>> => {
+  return apiRequest<Address[]>('/addresses');
+};
+
+// Get default address
+export const getDefaultAddress = async (): Promise<ApiResponse<Address>> => {
+  return apiRequest<Address>('/addresses/default');
+};
+
+// Create new address
+export const createAddress = async (data: {
+  label: 'home' | 'work' | 'other';
+  address_line: string;
+  area_name: string;
+  landmark?: string;
+  receiver_name: string;
+  receiver_phone: string;
+  latitude: number;
+  longitude: number;
+  pincode: string;
+  is_default?: boolean;
+}): Promise<ApiResponse<Address>> => {
+  return apiRequest<Address>('/addresses', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+// Order types
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string;
+  quantity: number;
+  price: string;
+  product: Product;
+}
+
+export interface Order {
+  id: string;
+  user_id: string;
+  status: 'placed' | 'confirmed' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
+  total_amount: string;
+  delivery_address: string;
+  created_at: string;
+  updated_at: string;
+  order_items?: OrderItem[];
+}
+
+// Create order from cart
+export const createOrder = async (data: {
+  delivery_address: string;
+}): Promise<ApiResponse<Order>> => {
+  return apiRequest<Order>('/orders', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+// Get user orders
+export const getOrders = async (params?: {
+  per_page?: number;
+  page?: number;
+}): Promise<ApiResponse<PaginatedResponse<Order>>> => {
+  const queryParams = new URLSearchParams();
+  if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+  if (params?.page) queryParams.append('page', params.page.toString());
+
+  const queryString = queryParams.toString();
+  const endpoint = `/orders${queryString ? `?${queryString}` : ''}`;
+
+  return apiRequest<PaginatedResponse<Order>>(endpoint);
+};
+
+// Get single order
+export const getOrder = async (orderId: string): Promise<ApiResponse<Order>> => {
+  return apiRequest<Order>(`/orders/${orderId}`);
+};
+
+// Payment types
+export interface PaymentOrder {
+  order_id: string;
+  payment_id: string;
+  gateway_order_id: string;
+  key_id: string;
+  amount: number;
+  amount_display: number;
+  currency: string;
+}
+
+export interface PaymentVerifyData {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+// Create payment order
+export const createPaymentOrder = async (data: {
+  order_id: string;
+  payment_method: 'online' | 'cod';
+}): Promise<ApiResponse<PaymentOrder>> => {
+  return apiRequest<PaymentOrder>('/payments/create-order', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+// Verify payment
+export const verifyPayment = async (
+  data: PaymentVerifyData
+): Promise<ApiResponse<{ payment_id: string; status: string; order_id: string }>> => {
+  return apiRequest<{ payment_id: string; status: string; order_id: string }>(
+    '/payments/verify',
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  );
+};
+
+// Get payment status
+export const getPaymentStatus = async (
+  orderId: string
+): Promise<ApiResponse<{ status: string; payment_method: string }>> => {
+  return apiRequest<{ status: string; payment_method: string }>(
+    `/payments/${orderId}/status`
+  );
+};
+
 export { API_BASE_URL };

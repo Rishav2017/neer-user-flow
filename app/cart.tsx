@@ -588,7 +588,10 @@ export default function CartScreen() {
                 ₹{Math.round(total)}
               </Text>
             </View>
-            <TouchableOpacity className="bg-purple-600 px-8 py-4 rounded-full">
+            <TouchableOpacity
+              onPress={() => router.push(`/checkout?tip=${tipAmount}`)}
+              className="bg-purple-600 px-8 py-4 rounded-full"
+            >
               <Text className="text-base font-bold text-white">
                 Proceed to Checkout
               </Text>

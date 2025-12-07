@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import {
@@ -16,20 +18,27 @@ import {
   Phone,
   Building,
   MapPinned,
+  Navigation,
 } from "lucide-react-native";
+import * as Location from "expo-location";
+import { createAddress } from "@/services/api";
 
 export default function AddAddressScreen() {
   const router = useRouter();
   const [selectedType, setSelectedType] = useState<"home" | "work" | "other">(
     "home"
   );
+  const [loading, setLoading] = useState(false);
+  const [fetchingLocation, setFetchingLocation] = useState(false);
   const [formData, setFormData] = useState({
-    fullName: "",
-    phoneNumber: "",
-    flatNumber: "",
-    area: "",
+    receiverName: "",
+    receiverPhone: "",
+    addressLine: "",
+    areaName: "",
     landmark: "",
     pincode: "",
+    latitude: 0,
+    longitude: 0,
   });
 
   const addressTypes = [
@@ -38,10 +47,89 @@ export default function AddAddressScreen() {
     { id: "other" as const, label: "Other", icon: MapPin },
   ];
 
-  const handleSaveAddress = () => {
-    // Mock save functionality
-    console.log("Saving address:", { ...formData, type: selectedType });
-    router.back();
+  const getCurrentLocation = async () => {
+    try {
+      setFetchingLocation(true);
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission Denied", "Location permission is required to get your current location.");
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      setFormData({
+        ...formData,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      Alert.alert("Success", "Location captured successfully!");
+    } catch (error) {
+      console.error("Error getting location:", error);
+      Alert.alert("Error", "Failed to get current location. Please try again.");
+    } finally {
+      setFetchingLocation(false);
+    }
+  };
+
+  const handleSaveAddress = async () => {
+    // Validate required fields
+    if (!formData.receiverName.trim()) {
+      Alert.alert("Error", "Please enter receiver's name");
+      return;
+    }
+    if (!formData.receiverPhone.trim() || formData.receiverPhone.length !== 10) {
+      Alert.alert("Error", "Please enter valid 10-digit phone number");
+      return;
+    }
+    if (!formData.addressLine.trim()) {
+      Alert.alert("Error", "Please enter flat/house number");
+      return;
+    }
+    if (!formData.areaName.trim()) {
+      Alert.alert("Error", "Please enter area name");
+      return;
+    }
+    if (!formData.pincode.trim() || formData.pincode.length !== 6) {
+      Alert.alert("Error", "Please enter valid 6-digit pincode");
+      return;
+    }
+    if (formData.latitude === 0 && formData.longitude === 0) {
+      Alert.alert("Error", "Please capture your current location");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      await createAddress({
+        label: selectedType,
+        address_line: formData.addressLine,
+        area_name: formData.areaName,
+        landmark: formData.landmark || undefined,
+        receiver_name: formData.receiverName,
+        receiver_phone: formData.receiverPhone,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+        pincode: formData.pincode,
+        is_default: false,
+      });
+
+      Alert.alert("Success", "Address saved successfully", [
+        {
+          text: "OK",
+          onPress: () => {
+            router.back();
+          },
+        },
+      ]);
+    } catch (error: any) {
+      console.error("Error saving address:", error);
+      Alert.alert("Error", error.message || "Failed to save address");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -60,15 +148,15 @@ export default function AddAddressScreen() {
           </Text>
         </View>
 
-        {/* Selected Location Display */}
+        {/* Info Display */}
         <View className="bg-white/20 rounded-2xl p-4 flex-row items-start">
           <MapPinned size={20} color="#FFFFFF" className="mt-1 mr-3" />
           <View className="flex-1">
             <Text className="text-white font-semibold text-base mb-1">
-              Delivering to
+              Add your delivery location
             </Text>
             <Text className="text-white/90 text-sm">
-              123 Main Street, Downtown Area, City - 400001
+              Fill in the details below to save your address
             </Text>
           </View>
         </View>
@@ -111,26 +199,26 @@ export default function AddAddressScreen() {
           </View>
         </View>
 
-        {/* Contact Details */}
+        {/* Receiver Details */}
         <View className="bg-white mx-4 mt-4 rounded-2xl p-4">
           <Text className="text-gray-900 font-semibold text-base mb-4">
-            Contact Details
+            Receiver Details
           </Text>
 
-          {/* Full Name Input */}
+          {/* Receiver Name Input */}
           <View className="mb-4">
             <Text className="text-gray-700 font-medium text-sm mb-2">
-              Full Name *
+              Receiver Name *
             </Text>
             <View className="flex-row items-center bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
               <User size={20} color="#6B7280" />
               <TextInput
                 className="flex-1 ml-3 text-gray-900 text-base"
-                placeholder="Enter your full name"
+                placeholder="Enter receiver's full name"
                 placeholderTextColor="#9CA3AF"
-                value={formData.fullName}
+                value={formData.receiverName}
                 onChangeText={(text) =>
-                  setFormData({ ...formData, fullName: text })
+                  setFormData({ ...formData, receiverName: text })
                 }
               />
             </View>
@@ -149,9 +237,9 @@ export default function AddAddressScreen() {
                 placeholderTextColor="#9CA3AF"
                 keyboardType="phone-pad"
                 maxLength={10}
-                value={formData.phoneNumber}
+                value={formData.receiverPhone}
                 onChangeText={(text) =>
-                  setFormData({ ...formData, phoneNumber: text })
+                  setFormData({ ...formData, receiverPhone: text })
                 }
               />
             </View>
@@ -175,15 +263,15 @@ export default function AddAddressScreen() {
                 className="flex-1 ml-3 text-gray-900 text-base"
                 placeholder="Enter flat/house number"
                 placeholderTextColor="#9CA3AF"
-                value={formData.flatNumber}
+                value={formData.addressLine}
                 onChangeText={(text) =>
-                  setFormData({ ...formData, flatNumber: text })
+                  setFormData({ ...formData, addressLine: text })
                 }
               />
             </View>
           </View>
 
-          {/* Area/Street */}
+          {/* Area Name */}
           <View className="mb-4">
             <Text className="text-gray-700 font-medium text-sm mb-2">
               Area / Street / Sector *
@@ -194,9 +282,9 @@ export default function AddAddressScreen() {
                 className="flex-1 ml-3 text-gray-900 text-base"
                 placeholder="Enter area or street name"
                 placeholderTextColor="#9CA3AF"
-                value={formData.area}
+                value={formData.areaName}
                 onChangeText={(text) =>
-                  setFormData({ ...formData, area: text })
+                  setFormData({ ...formData, areaName: text })
                 }
               />
             </View>
@@ -227,9 +315,8 @@ export default function AddAddressScreen() {
               Pincode *
             </Text>
             <View className="flex-row items-center bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
-              <MapPin size={20} color="#6B7280" />
               <TextInput
-                className="flex-1 ml-3 text-gray-900 text-base"
+                className="flex-1 text-gray-900 text-base"
                 placeholder="Enter 6-digit pincode"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="number-pad"
@@ -241,6 +328,49 @@ export default function AddAddressScreen() {
               />
             </View>
           </View>
+        </View>
+
+        {/* Location Section */}
+        <View className="bg-white mx-4 mt-4 rounded-2xl p-4">
+          <Text className="text-gray-900 font-semibold text-base mb-4">
+            Location Coordinates *
+          </Text>
+
+          <TouchableOpacity
+            onPress={getCurrentLocation}
+            disabled={fetchingLocation}
+            className={`flex-row items-center justify-center py-4 rounded-xl border-2 border-dashed ${
+              formData.latitude !== 0
+                ? "border-green-500 bg-green-50"
+                : "border-purple-300 bg-purple-50"
+            }`}
+          >
+            {fetchingLocation ? (
+              <ActivityIndicator size="small" color="#A855F7" />
+            ) : (
+              <>
+                <Navigation
+                  size={20}
+                  color={formData.latitude !== 0 ? "#10B981" : "#A855F7"}
+                />
+                <Text
+                  className={`ml-2 font-semibold ${
+                    formData.latitude !== 0 ? "text-green-600" : "text-purple-600"
+                  }`}
+                >
+                  {formData.latitude !== 0
+                    ? "Location Captured"
+                    : "Get Current Location"}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {formData.latitude !== 0 && (
+            <Text className="text-gray-500 text-xs text-center mt-2">
+              Lat: {formData.latitude.toFixed(6)}, Lng: {formData.longitude.toFixed(6)}
+            </Text>
+          )}
         </View>
 
         {/* Helper Text */}
@@ -255,9 +385,16 @@ export default function AddAddressScreen() {
       <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-4">
         <TouchableOpacity
           onPress={handleSaveAddress}
-          className="bg-purple-500 rounded-full py-4 items-center"
+          disabled={loading}
+          className={`rounded-full py-4 items-center ${
+            loading ? "bg-purple-300" : "bg-purple-500"
+          }`}
         >
-          <Text className="text-white font-bold text-base">Save Address</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text className="text-white font-bold text-base">Save Address</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
