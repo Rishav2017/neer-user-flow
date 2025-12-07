@@ -1,19 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, RefreshCw } from 'lucide-react-native';
+import { useAuth } from '@/context/AuthContext';
 
 export default function OTPVerificationScreen() {
   const router = useRouter();
+  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const { verifyAndLogin, sendOTP, phoneNumber: contextPhone } = useAuth();
+
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  
+  const [isResending, setIsResending] = useState(false);
+
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
-  // Mock phone number (in real app, this would come from navigation params)
-  const phoneNumber = '+91 98765 43210';
+  const displayPhone = phone || contextPhone || '';
+  const formattedPhone = displayPhone
+    ? `+91 ${displayPhone.slice(0, 5)} ${displayPhone.slice(5)}`
+    : '';
 
   // Timer countdown
   useEffect(() => {
@@ -28,7 +43,6 @@ export default function OTPVerificationScreen() {
   }, [timer]);
 
   const handleOtpChange = (value: string, index: number) => {
-    // Only allow numbers
     if (value && !/^\d+$/.test(value)) return;
 
     const newOtp = [...otp];
@@ -47,45 +61,64 @@ export default function OTPVerificationScreen() {
     }
   };
 
-  const handleResendOTP = () => {
-    if (!canResend) return;
-    
-    // Mock resend functionality
-    setTimer(30);
-    setCanResend(false);
-    setOtp(['', '', '', '', '', '']);
-    inputRefs.current[0]?.focus();
-    Alert.alert('Success', 'OTP has been resent to your phone number');
+  const handleResendOTP = async () => {
+    if (!canResend || !displayPhone) return;
+
+    setIsResending(true);
+
+    try {
+      await sendOTP(displayPhone);
+      setTimer(30);
+      setCanResend(false);
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
+      Alert.alert('Success', 'OTP has been resent to your phone number');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to resend OTP. Please try again.');
+    } finally {
+      setIsResending(false);
+    }
   };
 
   const handleVerify = async () => {
     const otpCode = otp.join('');
-    
+
     if (otpCode.length !== 6) {
       Alert.alert('Error', 'Please enter the complete 6-digit OTP');
       return;
     }
 
     setIsVerifying(true);
-    
-    // Mock verification (in real app, this would call an API)
-    setTimeout(() => {
-      setIsVerifying(false);
-      
-      // Mock success (in real app, check API response)
-      if (otpCode === '123456') {
-        Alert.alert('Success', 'Phone number verified successfully!', [
-          {
-            text: 'OK',
-            onPress: () => router.push('/'),
-          },
-        ]);
-      } else {
-        Alert.alert('Error', 'Invalid OTP. Please try again.');
-        setOtp(['', '', '', '', '', '']);
-        inputRefs.current[0]?.focus();
+
+    try {
+      // Verify OTP with Firebase and login to Laravel API
+      await verifyAndLogin(otpCode);
+
+      Alert.alert('Success', 'Phone number verified successfully!', [
+        {
+          text: 'OK',
+          onPress: () => router.replace('/home'),
+        },
+      ]);
+    } catch (error: any) {
+      console.error('Verification error:', error);
+
+      let errorMessage = 'Verification failed. Please try again.';
+
+      if (error.code === 'auth/invalid-verification-code') {
+        errorMessage = 'Invalid OTP. Please check and try again.';
+      } else if (error.code === 'auth/code-expired') {
+        errorMessage = 'OTP has expired. Please request a new one.';
+      } else if (error.message) {
+        errorMessage = error.message;
       }
-    }, 1500);
+
+      Alert.alert('Error', errorMessage);
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const isOtpComplete = otp.every((digit) => digit !== '');
@@ -103,7 +136,7 @@ export default function OTPVerificationScreen() {
         </TouchableOpacity>
         <Text className="text-white text-2xl font-bold">Verify OTP</Text>
         <Text className="text-purple-100 text-sm mt-1">
-          Enter the code sent to {phoneNumber}
+          Enter the code sent to {formattedPhone}
         </Text>
       </View>
 
@@ -114,7 +147,7 @@ export default function OTPVerificationScreen() {
             <Text className="text-gray-900 text-lg font-semibold mb-6 text-center">
               Enter 6-Digit Code
             </Text>
-            
+
             {/* OTP Input Boxes */}
             <View className="flex-row justify-center gap-3 mb-8">
               {otp.map((digit, index) => (
@@ -126,6 +159,7 @@ export default function OTPVerificationScreen() {
                   onKeyPress={(e) => handleKeyPress(e, index)}
                   keyboardType="number-pad"
                   maxLength={1}
+                  editable={!isVerifying}
                   className={`w-12 h-14 border-2 rounded-xl text-center text-xl font-bold ${
                     digit
                       ? 'border-purple-500 bg-purple-50 text-purple-600'
@@ -140,9 +174,7 @@ export default function OTPVerificationScreen() {
             <View className="items-center">
               {!canResend ? (
                 <View className="flex-row items-center gap-2 mb-4">
-                  <Text className="text-gray-500 text-sm">
-                    Resend OTP in
-                  </Text>
+                  <Text className="text-gray-500 text-sm">Resend OTP in</Text>
                   <View className="bg-purple-100 px-3 py-1 rounded-full">
                     <Text className="text-purple-600 font-semibold">
                       00:{timer.toString().padStart(2, '0')}
@@ -152,13 +184,20 @@ export default function OTPVerificationScreen() {
               ) : (
                 <TouchableOpacity
                   onPress={handleResendOTP}
+                  disabled={isResending}
                   className="flex-row items-center gap-2 mb-4"
                   activeOpacity={0.7}
                 >
-                  <RefreshCw color="#A855F7" size={18} />
-                  <Text className="text-purple-600 font-semibold">
-                    Resend OTP
-                  </Text>
+                  {isResending ? (
+                    <ActivityIndicator size="small" color="#A855F7" />
+                  ) : (
+                    <>
+                      <RefreshCw color="#A855F7" size={18} />
+                      <Text className="text-purple-600 font-semibold">
+                        Resend OTP
+                      </Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               )}
             </View>
@@ -167,32 +206,32 @@ export default function OTPVerificationScreen() {
             <TouchableOpacity
               onPress={handleVerify}
               disabled={!isOtpComplete || isVerifying}
-              className={`py-4 rounded-full ${
-                isOtpComplete && !isVerifying
-                  ? 'bg-purple-500'
-                  : 'bg-gray-300'
+              className={`py-4 rounded-full flex-row justify-center items-center ${
+                isOtpComplete && !isVerifying ? 'bg-purple-500' : 'bg-gray-300'
               }`}
               activeOpacity={0.8}
             >
-              <Text className="text-white text-center font-semibold text-base">
-                {isVerifying ? 'Verifying...' : 'Verify & Continue'}
-              </Text>
+              {isVerifying ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text className="text-white text-center font-semibold text-base">
+                  Verify & Continue
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
 
           {/* Help Section */}
           <View className="bg-purple-100 rounded-2xl p-4">
-            <Text className="text-purple-900 font-semibold mb-2">
-              💡 Quick Tips
+            <Text className="text-purple-900 font-semibold mb-2">Quick Tips</Text>
+            <Text className="text-purple-700 text-sm mb-1">
+              - Check your messages for the 6-digit code
             </Text>
             <Text className="text-purple-700 text-sm mb-1">
-              • Check your messages for the 6-digit code
-            </Text>
-            <Text className="text-purple-700 text-sm mb-1">
-              • Make sure you have a stable network connection
+              - Make sure you have a stable network connection
             </Text>
             <Text className="text-purple-700 text-sm">
-              • For testing, use code: 123456
+              - The code expires after 5 minutes
             </Text>
           </View>
 

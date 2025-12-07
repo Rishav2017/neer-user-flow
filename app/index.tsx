@@ -1,268 +1,190 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, Dimensions } from 'react-native';
-import { Search, ChevronDown, User, Heart, Home, Grid3x3, ShoppingBag, Coffee } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { Phone } from 'lucide-react-native';
+import { useAuth } from '@/context/AuthContext';
 
-const screenWidth = Dimensions.get('window').width;
+export default function LoginScreen() {
+  const router = useRouter();
+  const { sendOTP, isLoggedIn } = useAuth();
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [isValid, setIsValid] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
-export default function HomeScreen() {
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  // Redirect if already logged in
+  React.useEffect(() => {
+    if (isLoggedIn) {
+      router.replace('/home');
+    }
+  }, [isLoggedIn]);
 
-  const categories = [
-    { id: 1, name: 'All', emoji: '🛍️' },
-    { id: 2, name: 'Fresh', emoji: '🍎' },
-    { id: 3, name: 'Weekend Party', emoji: '🥕' },
-    { id: 4, name: 'Electronics', emoji: '🎧' },
-    { id: 5, name: 'Fashion', emoji: '👕' },
-  ];
+  const validatePhoneNumber = (number: string) => {
+    const phoneRegex = /^[0-9]{10}$/;
+    return phoneRegex.test(number);
+  };
 
-  const deals = [
-    {
-      id: 1,
-      name: 'Amul Day Black Currant Ice Cream Tub',
-      variant: '1 pack (500 ml)',
-      flavor: 'Black Currant',
-      price: 123,
-      originalPrice: 170,
-      discount: '₹47 OFF',
-      image: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400&q=80',
-    },
-    {
-      id: 2,
-      name: 'Crax Double Mazza Roasted Chana Peanuts Namkeen ...',
-      variant: '1 pack (160 g or 171 g)',
-      flavor: 'Power Crunch',
-      price: 48,
-      originalPrice: 55,
-      discount: '₹7 OFF',
-      image: 'https://images.unsplash.com/photo-1599490659213-e2b9527bd087?w=400&q=80',
-    },
-    {
-      id: 3,
-      name: 'HELL Energy Drink',
-      variant: '1 pc (250 ml)',
-      flavor: 'Original',
-      price: 46,
-      originalPrice: 60,
-      discount: '₹14 OFF',
-      image: 'https://images.unsplash.com/photo-1622543925917-763c34d1a86e?w=400&q=80',
-    },
-  ];
+  const handlePhoneChange = (text: string) => {
+    const cleaned = text.replace(/[^0-9]/g, '');
+    if (cleaned.length <= 10) {
+      setPhoneNumber(cleaned);
+      if (cleaned.length > 0) {
+        setIsValid(validatePhoneNumber(cleaned));
+      } else {
+        setIsValid(true);
+      }
+    }
+  };
+
+  const handleContinue = async () => {
+    if (!validatePhoneNumber(phoneNumber)) {
+      setIsValid(false);
+      return;
+    }
+
+    Keyboard.dismiss();
+    setIsLoading(true);
+
+    try {
+      // Send OTP via Firebase
+      await sendOTP(phoneNumber);
+      // Navigate to OTP screen
+      router.push({
+        pathname: '/otp',
+        params: { phone: phoneNumber },
+      });
+    } catch (error: any) {
+      console.error('Send OTP error:', error);
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to send OTP. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const isButtonEnabled = phoneNumber.length === 10 && isValid && !isLoading;
 
   return (
-    <View className="flex-1 bg-purple-100">
-      {/* Header */}
-      <View className="bg-purple-100 pt-12 pb-4 px-4">
-        <View className="flex-row items-center justify-between mb-3">
-          <View className="flex-1">
-            <View className="flex-row items-center">
-              <Text className="text-xl font-bold text-gray-900">Try Again in 15 Mins</Text>
-              <Text className="ml-2 text-xl">🏠</Text>
-            </View>
-            <View className="flex-row items-center mt-1">
-              <Text className="text-sm text-gray-700">Other - 13th Cross Road, Mico Layout, BTM 2...</Text>
-              <ChevronDown size={16} color="#374151" />
-            </View>
-          </View>
-          <TouchableOpacity className="w-12 h-12 rounded-full bg-white items-center justify-center">
-            <User size={24} color="#000" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Quick Access Pills */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          className="mt-3 max-h-20"
-          contentContainerStyle={{ gap: 12 }}
+    <SafeAreaView className="flex-1 bg-purple-50">
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
         >
-          <View className="bg-white rounded-2xl px-6 py-3">
-            <Text className="text-purple-600 font-bold text-base">zepto</Text>
-          </View>
-          <View className="bg-white rounded-2xl px-6 py-3">
-            <Text className="text-purple-600 font-bold text-base">50%</Text>
-            <Text className="text-purple-600 text-xs">OFF ZONE</Text>
-          </View>
-          <View className="bg-white rounded-2xl px-6 py-3">
-            <Text className="text-purple-600 font-bold text-base">Super</Text>
-            <Text className="text-purple-600 font-bold text-base">Mall.</Text>
-          </View>
-          <View className="bg-white rounded-2xl px-6 py-3">
-            <Text className="text-purple-400 font-bold text-base">café</Text>
-          </View>
-        </ScrollView>
-      </View>
-
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Search Bar */}
-        <View className="px-4 mb-4">
-          <View className="bg-white rounded-2xl px-4 py-4 flex-row items-center">
-            <Search size={20} color="#6B7280" />
-            <Text className="ml-3 text-gray-600 text-base">Search for "Golden Grain"</Text>
-          </View>
-        </View>
-
-        {/* Categories */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          className="mb-4 max-h-28"
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 24 }}
-        >
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category.id}
-              onPress={() => setSelectedCategory(category.name)}
-              className="items-center"
-            >
-              <Text className="text-4xl mb-2">{category.emoji}</Text>
-              <Text className={`text-sm font-medium ${selectedCategory === category.name ? 'text-gray-900' : 'text-gray-600'}`}>
-                {category.name}
-              </Text>
-              {selectedCategory === category.name && (
-                <View className="w-full h-1 bg-gray-900 rounded-full mt-2" />
-              )}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Promotional Banners */}
-        <View className="px-4 mb-4">
-          <View className="bg-white rounded-2xl p-4 mb-3">
-            <View className="flex-row items-center">
-              <View className="bg-purple-100 rounded-xl p-3 mr-3">
-                <Text className="text-purple-600 font-bold text-2xl">Z</Text>
-              </View>
-              <Text className="text-2xl font-bold text-gray-900">₹0 FEES</Text>
-            </View>
-          </View>
-
-          <View className="bg-purple-600 rounded-2xl p-4 mb-3">
-            <View className="flex-row items-center">
-              <View className="bg-yellow-400 rounded-full w-12 h-12 items-center justify-center mr-3">
-                <Text className="text-2xl">💰</Text>
-              </View>
-              <View>
-                <Text className="text-white font-bold text-lg">EVERYDAY</Text>
-                <Text className="text-white font-bold text-lg">LOWEST PRICES*</Text>
-              </View>
-            </View>
-          </View>
-
-          <View className="flex-row flex-wrap gap-3">
-            <View className="flex-row items-center">
-              <View className="w-5 h-5 rounded-full bg-green-500 items-center justify-center mr-2">
-                <Text className="text-white text-xs font-bold">✓</Text>
-              </View>
-              <Text className="text-purple-600 text-sm font-medium">₹0 Handling Fee</Text>
-            </View>
-            <View className="flex-row items-center">
-              <View className="w-5 h-5 rounded-full bg-green-500 items-center justify-center mr-2">
-                <Text className="text-white text-xs font-bold">✓</Text>
-              </View>
-              <Text className="text-purple-600 text-sm font-medium">₹0 Delivery Fee*</Text>
-            </View>
-            <View className="flex-row items-center">
-              <View className="w-5 h-5 rounded-full bg-green-500 items-center justify-center mr-2">
-                <Text className="text-white text-xs font-bold">✓</Text>
-              </View>
-              <Text className="text-purple-600 text-sm font-medium">₹0 Rain & Surge Fee</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Blockbuster Deals */}
-        <View className="px-4 mb-4">
-          <Text className="text-2xl font-bold text-gray-900 mb-4">
-            Blockbuster <Text className="font-normal">Deals</Text>
-          </Text>
-
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            className="max-h-96"
-            contentContainerStyle={{ gap: 12 }}
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{ flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            {deals.map((deal) => (
-              <View key={deal.id} className="bg-white rounded-2xl p-3 w-48">
-                <TouchableOpacity className="absolute top-3 right-3 z-10 w-8 h-8 bg-white rounded-full items-center justify-center">
-                  <Heart size={18} color="#EC4899" />
-                </TouchableOpacity>
-                
-                <Image
-                  source={{ uri: deal.image }}
-                  style={{ width: 168, height: 140 }}
-                  resizeMode="cover"
-                  className="rounded-xl mb-3"
-                />
+            {/* Header spacer */}
+            <View className="px-4 py-4 h-14" />
 
-                <TouchableOpacity className="bg-white border-2 border-purple-600 rounded-lg py-2 px-4 mb-3">
-                  <Text className="text-purple-600 font-bold text-center text-base">ADD</Text>
-                </TouchableOpacity>
-
-                <View className="flex-row items-center mb-1">
-                  <View className="bg-green-600 rounded px-2 py-1 mr-2">
-                    <Text className="text-white font-bold text-sm">₹{deal.price}</Text>
-                  </View>
-                  <Text className="text-gray-400 line-through text-sm">₹{deal.originalPrice}</Text>
+            {/* Content */}
+            <View className="flex-1 px-6 pt-8">
+              {/* Icon */}
+              <View className="items-center mb-8">
+                <View className="w-20 h-20 rounded-full bg-purple-500 items-center justify-center">
+                  <Phone size={40} color="#FFFFFF" />
                 </View>
+              </View>
 
-                <Text className="text-green-600 font-medium text-xs mb-2">{deal.discount}</Text>
+              {/* Title */}
+              <Text className="text-3xl font-bold text-gray-900 mb-3 text-center">
+                Welcome to QuickCart
+              </Text>
 
-                <Text className="text-gray-900 font-medium text-sm mb-1" numberOfLines={2}>
-                  {deal.name}
+              <Text className="text-base text-gray-500 text-center mb-12">
+                Enter your mobile number to get started
+              </Text>
+
+              {/* Phone Input */}
+              <View className="mb-6">
+                <Text className="text-sm font-medium text-gray-700 mb-2">
+                  Mobile Number
                 </Text>
 
-                <Text className="text-gray-500 text-xs mb-1">{deal.variant}</Text>
-                <Text className="text-gray-700 text-xs font-medium">{deal.flavor}</Text>
+                <View
+                  className={`flex-row items-center bg-white rounded-2xl px-4 py-4 ${
+                    !isValid ? 'border-2 border-red-500' : 'border-2 border-transparent'
+                  }`}
+                >
+                  <Text className="text-lg font-medium text-gray-900 mr-2">+91</Text>
+                  <View className="w-px h-6 bg-gray-300 mr-3" />
+                  <TextInput
+                    className="flex-1 text-lg text-gray-900"
+                    placeholder="Enter 10-digit mobile number"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="number-pad"
+                    maxLength={10}
+                    value={phoneNumber}
+                    onChangeText={handlePhoneChange}
+                    editable={!isLoading}
+                    accessibilityLabel="Phone number input"
+                  />
+                </View>
+
+                {!isValid && phoneNumber.length > 0 && (
+                  <Text className="text-sm text-red-500 mt-2 ml-1">
+                    Please enter a valid 10-digit mobile number
+                  </Text>
+                )}
               </View>
-            ))}
+
+              {/* Info Text */}
+              <View className="bg-purple-100 rounded-xl p-4 mb-8">
+                <Text className="text-sm text-gray-600 text-center">
+                  We'll send you a verification code to confirm your number
+                </Text>
+              </View>
+
+              {/* Continue Button */}
+              <TouchableOpacity
+                onPress={handleContinue}
+                disabled={!isButtonEnabled}
+                className={`rounded-full py-4 items-center flex-row justify-center ${
+                  isButtonEnabled ? 'bg-purple-500' : 'bg-gray-300'
+                }`}
+                accessibilityLabel="Continue to OTP verification"
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text
+                    className={`text-lg font-bold ${
+                      isButtonEnabled ? 'text-white' : 'text-gray-500'
+                    }`}
+                  >
+                    Continue
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Terms Text */}
+              <Text className="text-xs text-gray-500 text-center mt-6">
+                By continuing, you agree to our{' '}
+                <Text className="text-purple-500 font-medium">Terms of Service</Text>
+                {' '}and{' '}
+                <Text className="text-purple-500 font-medium">Privacy Policy</Text>
+              </Text>
+            </View>
           </ScrollView>
-        </View>
-
-        {/* Free Delivery Banner */}
-        <View className="px-4 mb-24">
-          <View className="bg-gray-800 rounded-2xl p-4 flex-row items-center">
-            <View className="w-10 h-10 bg-gray-700 rounded-full items-center justify-center mr-3">
-              <Text className="text-white text-xl">🔓</Text>
-            </View>
-            <View>
-              <Text className="text-white font-bold text-base">Unlock free delivery</Text>
-              <Text className="text-gray-300 text-sm">Shop for ₹99</Text>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Bottom Navigation */}
-      <View className="bg-white border-t border-gray-200 px-4 py-3">
-        <View className="flex-row items-center justify-between">
-          <TouchableOpacity className="items-center flex-1">
-            <View className="w-10 h-10 bg-pink-500 rounded-full items-center justify-center mb-1">
-              <Home size={20} color="#fff" />
-            </View>
-            <Text className="text-pink-500 text-xs font-medium">Home</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity className="items-center flex-1">
-            <Grid3x3 size={24} color="#6B7280" />
-            <Text className="text-gray-600 text-xs mt-1">Categories</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity className="items-center flex-1">
-            <ShoppingBag size={24} color="#6B7280" />
-            <Text className="text-gray-600 text-xs mt-1">Buy Again</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity className="items-center flex-1">
-            <Coffee size={24} color="#6B7280" />
-            <Text className="text-gray-600 text-xs mt-1">Café</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity className="items-center flex-1">
-            <Text className="text-red-500 font-bold text-sm">HUGGIES</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
+    </SafeAreaView>
   );
 }

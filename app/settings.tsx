@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
 import { 
   ArrowLeft, 
   User, 
@@ -19,8 +20,10 @@ import {
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { logout, user } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const settingsSections = [
     {
@@ -51,9 +54,29 @@ export default function SettingsScreen() {
   ];
 
   const handleLogout = () => {
-    // Mock logout functionality
-    console.log('User logged out');
-    router.push('/');
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoggingOut(true);
+            try {
+              await logout();
+              router.replace('/');
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            } finally {
+              setIsLoggingOut(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -80,9 +103,8 @@ export default function SettingsScreen() {
               <User color="#A855F7" size={32} />
             </View>
             <View className="flex-1 ml-4">
-              <Text className="text-gray-900 text-lg font-bold">John Doe</Text>
-              <Text className="text-gray-500 text-sm">john.doe@email.com</Text>
-              <Text className="text-gray-500 text-sm">+1 234 567 8900</Text>
+              <Text className="text-gray-900 text-lg font-bold">{user?.name || 'Guest User'}</Text>
+              <Text className="text-gray-500 text-sm">+91 {user?.phone || 'Not available'}</Text>
             </View>
             <TouchableOpacity 
               onPress={() => router.push('/profile')}
@@ -147,11 +169,18 @@ export default function SettingsScreen() {
         {/* Logout Button */}
         <TouchableOpacity
           onPress={handleLogout}
+          disabled={isLoggingOut}
           className="bg-white mx-4 mt-4 mb-8 p-4 rounded-2xl shadow-sm flex-row items-center justify-center"
           accessibilityLabel="Logout"
         >
-          <LogOut color="#EF4444" size={20} />
-          <Text className="text-red-500 text-base font-semibold ml-2">Logout</Text>
+          {isLoggingOut ? (
+            <ActivityIndicator color="#EF4444" size="small" />
+          ) : (
+            <>
+              <LogOut color="#EF4444" size={20} />
+              <Text className="text-red-500 text-base font-semibold ml-2">Logout</Text>
+            </>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </View>

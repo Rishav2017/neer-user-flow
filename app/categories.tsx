@@ -109,9 +109,10 @@ export default function CategoriesScreen() {
           {/* First Row - 3 items */}
           <View className="flex-row flex-wrap gap-3 mb-3">
             {groceryCategories.slice(0, 3).map((category) => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={category.id}
                 className="bg-white rounded-2xl p-4 items-center shrink-0 basis-[31%] min-w-0"
+                onPress={() => router.push('/subcategory')}
               >
                 <Image
                   source={{ uri: category.image }}
@@ -128,9 +129,10 @@ export default function CategoriesScreen() {
           {/* Second Row - 4 items */}
           <View className="flex-row flex-wrap gap-3">
             {groceryCategories.slice(3, 7).map((category) => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={category.id}
                 className="bg-white rounded-2xl p-4 items-center shrink-0 basis-[23%] min-w-0"
+                onPress={() => router.push('/subcategory')}
               >
                 <Image
                   source={{ uri: category.image }}
@@ -148,12 +150,13 @@ export default function CategoriesScreen() {
         {/* Snacks & Drinks Section */}
         <View className="px-4 pt-6 pb-4">
           <Text className="text-xl font-bold text-gray-900 mb-4">Snacks & Drinks</Text>
-          
+
           <View className="flex-row flex-wrap gap-3">
             {snacksCategories.map((category) => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={category.id}
                 className="bg-white rounded-2xl p-4 items-center shrink-0 basis-[23%] min-w-0"
+                onPress={() => router.push('/subcategory')}
               >
                 <Image
                   source={{ uri: category.image }}
@@ -187,9 +190,9 @@ export default function CategoriesScreen() {
 
       {/* Bottom Navigation */}
       <View className="bg-white border-t border-gray-200 px-4 py-2 flex-row items-center justify-around">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="items-center py-2 px-4"
-          onPress={() => router.push('/')}
+          onPress={() => router.push('/home')}
         >
           <View className="w-6 h-6 items-center justify-center mb-1">
             <View className="w-5 h-5 border-2 border-gray-400 rounded-lg" />
@@ -211,9 +214,9 @@ export default function CategoriesScreen() {
           <Text className="text-pink-500 text-xs font-semibold">Categories</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           className="items-center py-2 px-4"
-          onPress={() => router.push('/')}
+          onPress={() => router.push('/cart')}
         >
           <View className="w-6 h-6 items-center justify-center mb-1">
             <View className="w-5 h-5 border-2 border-gray-400 rounded" />
@@ -221,10 +224,7 @@ export default function CategoriesScreen() {
           <Text className="text-gray-500 text-xs">Buy Again</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          className="items-center py-2 px-4"
-          onPress={() => router.push('/')}
-        >
+        <TouchableOpacity className="items-center py-2 px-4">
           <View className="w-6 h-6 items-center justify-center mb-1">
             <View className="w-4 h-5 border-2 border-gray-400 rounded-t-lg" />
             <View className="w-3 h-1 bg-gray-400 absolute bottom-0" />
@@ -232,9 +232,9 @@ export default function CategoriesScreen() {
           <Text className="text-gray-500 text-xs">Café</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           className="items-center py-2 px-4"
-          onPress={() => router.push('/')}
+          onPress={() => router.push('/settings')}
         >
           <Text className="text-red-500 text-base font-bold mb-1">HUGGIES</Text>
         </TouchableOpacity>
